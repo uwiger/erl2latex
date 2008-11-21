@@ -21,9 +21,9 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 %% DEALINGS IN THE SOFTWARE.
 %%
--module(erl2pdf).
+-module(erl2latex).
 
--compile(export_all).
+-export([file/1, file/2]).
 
 
 file(F) ->
