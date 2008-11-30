@@ -46,6 +46,15 @@
 %% The interface is:\\
 %% file(Filename [, Options]) -> ok | \{error, Reason\}
 %%
+%% Options can be specified either when calling file/[1,2], or 
+%% by adding an attribute, -erl2latex(Options), in the source code.
+%% The attribute will not be included in the latex output.
+%% Options given in the function call will shadow options embedded in
+%% the source code.
+%%
+%% mode: normal or included. If mode is included, preamble and document 
+%%       begin and end markers are removed if found.
+%%
 -spec file/1 :: (Filename::string()) -> ok.
 
 file(F) ->
