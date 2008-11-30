@@ -1,4 +1,5 @@
 %% \title{erl2latex: Literal Erlang Programming}
+%% \author{Ulf Wiger <ulf@wiger.net>}
 %% \maketitle
 %%
 %% Copyright (c) 2008 Ulf Wiger, John Hughes\footnote{
@@ -38,41 +39,57 @@
 
 -export([file/1, file/2]).
 
+-erl2latex([{documentclass, auto}]).
+
 %% \section{file/[1,2]}
 %% 
 %% The interface is:\\
-%% file(Filename [, Target\_filename]) -> ok | \{error, Reason\}
+%% file(Filename [, Options]) -> ok | \{error, Reason\}
 %%
-%% If no target filename is given, the .erl extension of the source filename
-%% will be stripped and replaced with .tex.
-%%
-file(F) ->
-    file(F, latex_target(F)).
+-spec file/1 :: (Filename::string()) -> ok.
 
-file(F, Target) ->
+file(F) ->
+    file(F, []).
+
+
+-type option() :: {documentclass, none | auto | string()}
+                  | {mode, normal | included}
+                  | {source_listing, auto | string()}.
+
+-spec file/2 :: (Filename::string(), [option()]) -> ok.
+
+file(F, Options) ->
     case file:read_file(F) of
         {ok, Bin} ->
-            output(convert_to_latex(Bin), Target);
+            output(convert_to_latex(Bin, Options), latex_target(F,Options));
         Err ->
             Err
     end.
 
-%% The actual conversion function. We separate comments from code,
+%% \section{Conversion to Latex}
+%% Below is the actual conversion function. We separate comments from code,
 %% and convert each block to latex separately. We then insert a preamble,
 %% if not already present, or insert a small formatting macro for the 
 %% source code (if not already defined).
 %%
-convert_to_latex(Bin) ->
-    Parts = split_input(binary_to_list(Bin)),
+convert_to_latex(Bin, Options0) ->
+    Parts0 = split_input(binary_to_list(Bin)),
+    {Parts, Embedded_options} = embedded_options(Parts0),
+    Options = Options0 ++ Embedded_options,
+    Mode = proplists:get_value(mode, Options, normal),
     case lists:flatten([convert_part(P) || P <- Parts]) of
         "\\document" ++ _ = Latex0 ->
             {Preamble,Doc} = get_preamble(Latex0),
-            [Preamble, source_listing_setup(Preamble),
-             Doc, end_doc()];
+            [[[Preamble,
+               source_listing_setup(Preamble),
+               "\\begin{document}\n"] || Mode == normal],
+             Doc,
+             end_doc(Mode)];
         Latex0 ->
-            [default_preamble(),
-             "\\begin{document}\n",
-             Latex0, end_doc()]
+            [[[default_preamble(Options),
+               "\\begin{document}\n"] || Mode == normal],
+             Latex0,
+             end_doc(Mode)]
     end.
 
 
@@ -83,85 +100,92 @@ get_preamble(Str) ->
     get_preamble(Str, []).
 
 get_preamble("\\begin{document}" ++ Rest, Acc) ->
-    {lists:reverse("\n" ++ Acc), "\\begin{document}\n" ++ Rest};
+    {lists:reverse("\n" ++ Acc), Rest};
 get_preamble([H|T], Acc) ->
     get_preamble(T, [H|Acc]).
 
-default_preamble() ->
-    ["\\documentclass[a4paper,12pt]{article}\n",
-     source_listing_setup()].
 
-source_listing_setup(Preamble) ->
+%% The following functions output the default latex preamble and 
+%% document end marker.
+%%
+default_preamble(Options) ->
+    [Doc_class,Src_listing] =
+        [proplists:get_value(P,Options) || 
+            P <- [documentclass, source_listing]],
+    document_class(Doc_class) ++ source_listing_setup(Src_listing,"").
+
+document_class(Opt) ->
+    if Opt==auto; Opt==undefined ->
+            "\\documentclass[a4paper,12pt]{article}\n";
+       Opt==none -> "";
+       is_list(Opt) -> Opt
+    end.
+
+source_listing_setup(Opt,Preamble) ->
     case regexp:first_match(Preamble, "begin{mylisting}") of
         {match,_,_} ->
             [];
         nomatch ->
-            source_listing_setup()
+            source_listing_setup(Opt)
     end.
 
-source_listing_setup() ->
+source_listing_setup(undefined) ->
+    source_listing_setup
+      ("\\setlength{\\leftmargin}{1em}}"
+       "\\item\\scriptsize\\bfseries");
+source_listing_setup(Str) when is_list(Str) ->
     ("\\newenvironment{mylisting}\n"
-     "{\\begin{list}{}{\\setlength{\\leftmargin}{1em}}"
-     "\\item\\scriptsize\\bfseries}\n"
-     "{\\end{list}}\n"
-     "\n"
-     "\\newenvironment{mytinylisting}\n"
-     "{\\begin{list}{}{\\setlength{\\leftmargin}{1em}}"
-     "\\item\\tiny\\bfseries}\n"
-     "{\\end{list}}\n").
+     "{\\begin{list}{}{")
+        ++ Str
+        ++ ("}\n"
+            "{\\end{list}}\n"
+            "\n").
+    
 
 
 end_doc() ->
     "\n\\end{document}\n".
 
+end_doc(included) ->
+    "";
+end_doc(normal) ->
+    end_doc().
 
-split_input(Txt) ->
-    group([wrap(L) || L <- lines(Txt)]).
-
-lines(Str) ->
-    lines(Str, []).
-
-lines("\n" ++ Str, Acc) ->
-    [lists:reverse(Acc) | lines(Str,[])];
-lines([H|T], Acc) ->
-    lines(T, [H|Acc]);
-lines([], Acc) ->
-    [lists:reverse(Acc)].
-    
-
-wrap("%" ++ S) ->
-    {comment, strip_comment(S)};
-wrap(S) ->
-    {code, S}.
 
  
-group([{T,C}|Tail]) ->
-    {More,Rest} = lists:splitwith(fun({T1,_C1}) -> T1 == T end, Tail),
-    [{T,[C|[C1 || {_,C1} <- More]]} | group(Rest)];
-group([]) ->
-    [].
-
 %% In this function, we wrap the different `source' and `comment' blocks
 %% appropriately. The weird-looking split between string parts is to keep
 %% pdflatex from tripping on what looks like the end of the verbatim block.
 %%
+convert_part({code,[]}) -> [];
 convert_part({code,Lines}) ->
     ["\\begin{mylisting}\n"
      "\\begin{verbatim}\n",
-     [[expand(L),"\n"] || L <- Lines],
+     [expand(L) || L <- normalize(Lines)],
      "\\" "end{verbatim}\n"
      "\\end{mylisting}\n\n"];
 convert_part({comment,Lines}) ->
-    [[[L,"\n"] || L <- Lines],"\n"].
+    Lines.
 
+normalize(["\n","\n"|T]) ->  normalize(["\n"|T]);
+normalize([H|T])         ->  [H|normalize(T)];
+normalize([])            ->  [].
 
-%% The expand(Line) function expands tabs for better formatting. The
-%% tab expansion algorithm is really too simplistic.
+%% The expand(Line) function expands tabs for better formatting.
 
 expand(Line) ->
-    lists:map(fun($\t) -> ["    "];
-                 (C) -> C
-              end, Line).
+    expand_tabs(Line).
+
+expand_tabs(Xs) ->
+  expand_tabs(0,Xs).
+
+expand_tabs(_N,[]) ->
+    [];
+expand_tabs(N,[$\t|Xs]) ->
+    N1 = 8*(N div 8) + 8,
+    [$\s || _ <- lists:seq(N,N1)] ++ expand_tabs(N1,Xs);
+expand_tabs(N,[X|Xs]) ->
+    [X|expand_tabs(N+1,Xs)].
 
 %% Following edoc convention, comments are excluded if the first non-space
 %% character following the leading string of \% is another \%,
@@ -188,15 +212,106 @@ strip_comment(C) ->
             Stripped
     end.
 
-strip_percents("%" ++ C) ->
-    strip_percents(C);
-strip_percents(C) ->
-    C.
+strip_percents("%" ++ C) -> strip_percents(C);
+strip_percents(C)        -> C.
 
-%% Finally, just a few utility functions.
+%% \section{Utility Functions}
 %%
-latex_target(F) ->
-    filename:basename(F,".erl") ++ ".tex".
+
+split_input(Txt) ->
+    [{T1,Ls} ||
+        {T1,Ls} <- 
+            [{T,strip_empty(L1)} || {T,L1} <-
+                                        group([wrap(L) || L <- lines(Txt)])],
+        Ls =/= []].
+
+lines(Str) ->
+    lines(Str, []).
+
+lines("\n" ++ Str, Acc) ->
+    [lists:reverse([$\n|Acc]) | lines(Str,[])];
+lines([H|T], Acc) ->
+    lines(T, [H|Acc]);
+lines([], Acc) ->
+    [lists:reverse(Acc)].
+    
+
+wrap("%" ++ S) ->
+    {comment, strip_comment(S)};
+wrap(S) ->
+    {code, S}.
+
+strip_empty(Ls) ->
+    Strip = fun(Ls1) -> 
+                    lists:dropwhile(fun(L) -> strip_space(L) == [] end, Ls1)
+            end,
+    lists:reverse(Strip(lists:reverse(Strip(Ls)))).
+
+
+%% Remove leading empty lines, even if they contain whitespace.
+%%
+strip_space(L) ->
+    lists:dropwhile(fun(C) when C==$\s; C==$\t; C==$\n -> true;
+                       (_) -> false
+                    end, L).
+
+
+group([{T,C}|Tail]) ->
+    {More,Rest} = lists:splitwith(fun({T1,_C1}) -> T1 == T end, Tail),
+    [{T,[C|[C1 || {_,C1} <- More]]} | group(Rest)];
+group([]) ->
+    [].
+
+
+latex_target(F, Options) ->
+    Target_base = filename:basename(F,".erl") ++ ".tex",
+    Outdir = proplists:get_value(outdir, Options, filename:dirname(F)),
+    filename:join(Outdir, Target_base).
 
 output(Data, F) ->
     file:write_file(F, list_to_binary(Data)).
+
+
+embedded_options(Parts) ->
+    lists:mapfoldl(
+      fun({code,Ls}=Part,Acc) ->
+              case scan_for_opts(Ls) of
+                  none       -> {Part,Acc};
+                  {Opts,Ls1} -> {{code,Ls1}, Acc ++ Opts}
+              end;
+         (Other, Acc) ->
+              {Other, Acc}
+      end, [], Parts).
+
+scan_for_opts(Ls) ->
+    scan_forms(Ls, [], []).
+
+scan_forms(Ls, Opts0, Acc) ->
+    case scan_tokens(Ls) of
+        {{ok,[{'-',_},{atom,_,erl2latex},{'(',L}|Ts], _}, Used, Rest} ->
+            case erl_parse:parse_term([{'(',L}|Ts]) of
+                {ok, Opts} -> scan_forms(Rest, Opts0++Opts, Acc);
+                {error,_}  -> scan_forms(Rest, Opts0, Acc ++ Used)
+            end;
+        {{eof,_}, Used, []} ->
+            case Opts0 of 
+                [_|_] -> {Opts0, Acc ++ Used};
+                []    -> none
+            end;
+        {_, Used, Rest} ->
+            scan_forms(Rest, Opts0, Acc ++ Used)
+    end.
+
+scan_tokens([L|Ls]) ->
+    scan_tokens(erl_scan:tokens([],L,1), Ls, [L]).
+
+scan_tokens({done,Result,Leftover_chars},Rest,Used) ->
+    {Result, lists:reverse(Used), [Leftover_chars|Rest]};
+scan_tokens({more, Cont}, Ls, Used) ->
+    case Ls of
+        [] ->
+            {{eof,1}, lists:reverse(Used), []};
+        [L|Rest] ->
+            scan_tokens(erl_scan:tokens(Cont, L, 1), Rest, [L|Used])
+    end.
+

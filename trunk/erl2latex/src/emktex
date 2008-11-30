@@ -29,7 +29,7 @@ main(Args) ->
         code:add_path("../ebin"),
         St of
         {F, Out} ->
-            case erl2latex:file(F, Out) of
+            case erl2latex:file(F, [{outdir,Out}]) of
                 ok ->
                     return_ok();
                 Error ->
@@ -55,10 +55,7 @@ chk_args(["-o",Out|Args], {Src,_}) ->
 chk_args([Src|Args], {_,Out}) ->
     chk_args(Args, {Src,Out});
 chk_args([], {Src,Out}) ->
-    Base = filename:basename(Src,".erl"),
-    OutF = filename:join(Out,Base ++ ".tex"),
-    {Src,OutF}.
-
+    {Src,Out}.
 
 rpt(Msg,Args) ->
     io:fwrite("emktex: " ++ Msg, Args).
