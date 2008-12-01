@@ -36,13 +36,18 @@
 
 MODS = erl2latex
 
+emktex.tex: emktex
+	${PWD}/emktex -o ../doc $<
+
 all: compile doc
 
 compile: ${MODS:%=%.beam}
 
 doc: tex pdf
 
-tex: ${MODS:%=%.tex}
+tex:	${MODS:%=%.tex} \
+	emktex
 
-pdf: ${MODS:%=%.pdf}
+pdf:	${MODS:%=%.pdf} \
+	emktex.pdf
 

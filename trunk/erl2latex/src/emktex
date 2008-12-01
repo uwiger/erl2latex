@@ -1,6 +1,9 @@
 #!/usr/bin/env escript
 
-%% The MIT License
+%% \title{emktex: erl2latex Build Script}
+%% \maketitle
+%% Copyright (c) 2008 Ulf Wiger, John Hughes\footnote{
+%% \tiny{The MIT License
 %%
 %% Copyright (c) 2008 Ulf Wiger <ulf@wiger.net>,
 %%                    John Hughes <john.hughes@quviq.com>
@@ -22,12 +25,13 @@
 %% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 %% DEALINGS IN THE SOFTWARE.
-
+%% }}
+%%
+-include_lib("kernel/include/file.hrl").
 
 main(Args) ->
-    try St = chk_args(Args),
-        code:add_path("../ebin"),
-        St of
+    try code:add_path(path()),
+        chk_args(Args) of
         {F, Out} ->
             case erl2latex:file(F, [{outdir,Out}]) of
                 ok ->
@@ -65,3 +69,26 @@ return_error() ->
 
 return_ok() ->
     init:stop(0).
+
+
+%% This fairly elaborate function tries to find the ebin/ directory
+%% where erl2latex.beam resides. It is designed to work even if the emktex
+%% script is started from a symlink to the original.
+%%
+path() ->
+    Script = escript:script_name(),
+    Src = src_name(Script),
+    Abs = filename:absname(Src),
+    filename:join(dir(dir(Abs)), "ebin").
+
+src_name(F) ->
+    case file:read_link_info(F) of
+        {ok, #file_info{type = symlink}} ->
+            {ok, Src} = file:read_link(F),
+            src_name(Src);
+        {ok, #file_info{type = regular}} ->
+            F
+    end.
+
+dir(F) ->
+    filename:dirname(F).

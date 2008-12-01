@@ -1,12 +1,12 @@
 %% \title{erl2latex: Literal Erlang Programming}
-%% \author{Ulf Wiger <ulf@wiger.net>}
+%% \author{Ulf Wiger $<$ulf@wiger.net$>$}
 %% \maketitle
 %%
 %% Copyright (c) 2008 Ulf Wiger, John Hughes\footnote{
 %% \tiny{The MIT License
 %%
-%% Copyright (c) 2008 Ulf Wiger <ulf@wiger.net>,
-%%                    John Hughes <john.hughes@quviq.com>
+%% Copyright (c) 2008 Ulf Wiger $<$ulf@wiger.net$>$,
+%%                    John Hughes $<$john.hughes@quviq.com$>$
 %%
 %% Permission is hereby granted, free of charge, to any person obtaining a
 %% copy of this software and associated documentation files (the "Software"),
@@ -35,6 +35,10 @@
 %% should read as a good paper. Unlike XML markup, Latex markup is also 
 %% fairly unobtrusive when reading the source directly.
 %%
+%% See the Makefile for hints on how to integrate erl2latex into your own
+%% build system. You can call the emktex script using a symbolic link to
+%% the original script, which is located in the erl2latex/src directory.
+%%
 -module(erl2latex).
 
 -export([file/1, file/2]).
@@ -44,7 +48,7 @@
 %% \section{file/[1,2]}
 %% 
 %% The interface is:\\
-%% file(Filename [, Options]) -> ok | \{error, Reason\}
+%% file(Filename [, Options]) -$>$ ok $|$ \{error, Reason\}
 %%
 %% Options can be specified either when calling file/[1,2], or 
 %% by adding an attribute, -erl2latex(Options), in the source code.
@@ -52,10 +56,11 @@
 %% Options given in the function call will shadow options embedded in
 %% the source code.
 %%
-%% mode: normal or included. If mode is included, preamble and document 
+%% mode: `normal' or `included'. 
+%% If mode is `included', preamble and document 
 %%       begin and end markers are removed if found.
 %%
--spec file/1 :: (Filename::string()) -> ok.
+-spec file/1 :: (Filename::string()) -> ok | {'error',atom()}.
 
 file(F) ->
     file(F, []).
@@ -65,7 +70,7 @@ file(F) ->
                   | {mode, normal | included}
                   | {source_listing, auto | string()}.
 
--spec file/2 :: (Filename::string(), [option()]) -> ok.
+-spec file/2 :: (Filename::string(), [option()]) -> ok | {'error',atom()}.
 
 file(F, Options) ->
     case file:read_file(F) of
@@ -83,7 +88,8 @@ file(F, Options) ->
 %%
 convert_to_latex(Bin, Options0) ->
     Parts0 = split_input(binary_to_list(Bin)),
-    {Parts, Embedded_options} = embedded_options(Parts0),
+    {Parts1, Embedded_options} = embedded_options(Parts0),
+    Parts = rearrange_if_escript(Parts1),
     Options = Options0 ++ Embedded_options,
     Mode = proplists:get_value(mode, Options, normal),
     case lists:flatten([convert_part(P) || P <- Parts]) of
@@ -324,3 +330,8 @@ scan_tokens({more, Cont}, Ls, Used) ->
             scan_tokens(erl_scan:tokens(Cont, L, 1), Rest, [L|Used])
     end.
 
+rearrange_if_escript([{code, ["#!" ++ _|_]} = Head,
+                      {comment, _} = Cmt|Rest]) ->
+    [Cmt, Head | Rest];
+rearrange_if_escript(Other) ->
+    Other.
