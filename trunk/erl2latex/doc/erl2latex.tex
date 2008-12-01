@@ -338,6 +338,12 @@ scan_tokens({more, Cont}, Ls, Used) ->
             scan_tokens(erl_scan:tokens(Cont, L, 1), Rest, [L|Used])
     end.
 
+rearrange_if_escript([{code, ["#!" ++ _ = Head]},
+                      {comment, ["! -" ++ _ = Xtra]},
+                      {comment, _} = Cmt|Rest]) ->
+    Code = {code, [Head, "%%" ++ Xtra]},
+    io:fwrite("Code = ~p~n", [Code]),
+    [Cmt, Code | Rest];
 rearrange_if_escript([{code, ["#!" ++ _|_]} = Head,
                       {comment, _} = Cmt|Rest]) ->
     [Cmt, Head | Rest];
