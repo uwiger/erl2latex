@@ -1,7 +1,7 @@
 #!/usr/bin/env escript
 %%! -smp enable
 
-%% \title{emktex: erl2latex Build Script}
+%% \title{erl2latex LATEX Build Script}
 %% \maketitle
 %% Copyright (c) 2008 Ulf Wiger, John Hughes\footnote{
 %% \tiny{The MIT License

@@ -70,12 +70,19 @@ file(F) ->
                   | {mode, normal | included}
                   | {source_listing, auto | string()}.
 
--spec file/2 :: (Filename::string(), [option()]) -> ok | {'error',atom()}.
+-spec file/2 :: (Filename::string(), [option()]) ->
+                      {ok,string()} | {'error',atom()}.
 
 file(F, Options) ->
     case file:read_file(F) of
         {ok, Bin} ->
-            output(convert_to_latex(Bin, Options), latex_target(F,Options));
+            Target = latex_target(F, Options),
+            case output(convert_to_latex(Bin, Options), Target) of
+                ok ->
+                    {ok, Target};
+                Output_err ->
+                    Output_err
+            end;
         Err ->
             Err
     end.
@@ -334,7 +341,7 @@ rearrange_if_escript([{code, ["#!" ++ _ = Head]},
                       {comment, ["! -" ++ _ = Xtra]},
                       {comment, _} = Cmt|Rest]) ->
     Code = {code, [Head, "%%" ++ Xtra]},
-    io:fwrite("Code = ~p~n", [Code]),
+%% %    io:fwrite("Code = ~p~n", [Code]),
     [Cmt, Code | Rest];
 rearrange_if_escript([{code, ["#!" ++ _|_]} = Head,
                       {comment, _} = Cmt|Rest]) ->

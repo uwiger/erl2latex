@@ -21,33 +21,73 @@
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
 
+# FLAGS = -keep_temp
 
-.SUFFIXES: .erl .beam .tex .pdf
+EBINDIR = ../ebin
+DOCDIR = ../doc
+EOBJEXT = beam
+
+MKPDF = ${PWD}/make_pdf ${FLAGS} -o ../doc
+ERLC = erlc -W -o ${EBINDIR} +debug_info
+
+ESRC := erl2latex.erl \
+	erl2pdf.erl
 
 
-.erl.beam:
-	erlc -W -o ../ebin $<
+EOBJS = $(ESRC:%.erl=$(EBINDIR)/%.$(EOBJEXT))
+DOCS = $(ESRC:%.erl=$(DOCDIR)/%.pdf)
 
-.erl.tex:
-	${PWD}/emktex -o ../doc $<
+all: src doc
 
-.tex.pdf:
-	pdflatex -output-directory=../doc ../doc/$<
-
-MODS = erl2latex
-
-emktex.tex: emktex
-	${PWD}/emktex -o ../doc $<
-
-all: compile doc
-
-compile: ${MODS:%=%.beam}
-
-doc: tex pdf
-
-tex:	${MODS:%=%.tex} \
-	emktex
+src: $(EOBJS)
+doc: $(DOCS) \
+	make_pdf.pdf \
+	make_tex.pdf
 
 pdf:	${MODS:%=%.pdf} \
-	emktex.pdf
+	make_pdf.pdf \
+	make_tex.pdf
+
+clean:
+	rm *~ \#*\# $(EBINDIR)/*.beam $(DOCDIR)/*.pdf $(DOCDIR)/*.latex
+
+
+#.SUFFIXES: .erl .beam .tex .pdf
+
+$(EBINDIR)/%.$(EOBJEXT): %.erl
+	$(ERLC) $<
+
+$(DOCDIR)/make_pdf.pdf: make_pdf
+	$(MKPDF) make_pdf
+
+$(DOCDIR)/make_latex.pdf: make_latex
+	$(MKPDF) make_latex
+
+$(DOCDIR)/%.pdf: %.erl
+	$(MKPDF) $<
+
+.erl.beam:
+	$(ERLC) $<
+#	erlc -W -o ../ebin $<
+
+.erl.tex:
+	${PWD}/make_tex -o ../doc $<
+
+.erl.pdf:
+	${MKPDF} $<
+
+MODS :=	erl2latex \
+	erl2pdf
+
+
+#tex:	${MODS:%=%.tex} \
+#	make_tex
+
+
+
+
+make_pdf.pdf: make_pdf erl2pdf.erl erl2latex.erl
+	${MKPDF} make_pdf
+make_tex.pdf: make_tex erl2pdf.erl erl2latex.erl
+	${MKPDF} make_tex
 
