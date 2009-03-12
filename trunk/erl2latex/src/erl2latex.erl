@@ -286,9 +286,16 @@ group([]) ->
 
 
 latex_target(F, Options) ->
-    Target_base = filename:basename(F,".erl") ++ ".tex",
+% %    Target_base = filename:basename(F,".erl") ++ ".tex",
+    Target_base = strip_extension(F) ++ ".tex",
     Outdir = proplists:get_value(outdir, Options, filename:dirname(F)),
     filename:join(Outdir, Target_base).
+
+strip_extension(F) ->
+    case regexp:split(F, "\.[a-z]+$") of
+        {ok, [F1,[]]} ->
+            F1
+    end.
 
 output(Data, F) ->
     file:write_file(F, list_to_binary(Data)).

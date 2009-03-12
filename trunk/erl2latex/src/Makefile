@@ -23,71 +23,39 @@
 
 # FLAGS = -keep_temp
 
-EBINDIR = ../ebin
-DOCDIR = ../doc
-EOBJEXT = beam
+.SUFFIXES: .erl .beam .tex .pdf .escript
 
-MKPDF = ${PWD}/make_pdf ${FLAGS} -o ../doc
-ERLC = erlc -W -o ${EBINDIR} +debug_info
+vpath %.beam ../ebin
+vpath %.pdf ../doc
 
-ESRC := erl2latex.erl \
-	erl2pdf.erl
+MKPDF = ./make_pdf.escript ${FLAGS} -o ../doc
+ERLC = erlc -W -o ../ebin +debug_info
 
+epdfs = erl2latex.pdf \
+        erl2pdf.pdf
 
-EOBJS = $(ESRC:%.erl=$(EBINDIR)/%.$(EOBJEXT))
-DOCS = $(ESRC:%.erl=$(DOCDIR)/%.pdf)
+spdfs =  make_pdf.pdf \
+         make_tex.pdf
 
-all: src doc
+pdfs = $(epdfs) $(spdfs)
 
-src: $(EOBJS)
-doc: $(DOCS) \
-	make_pdf.pdf \
-	make_tex.pdf
+beams = erl2pdf.beam \
+        erl2latex.beam
 
-pdf:	${MODS:%=%.pdf} \
-	make_pdf.pdf \
-	make_tex.pdf
+all : $(beams) $(epdfs) $(spdfs)
 
-clean:
-	rm *~ \#*\# $(EBINDIR)/*.beam $(DOCDIR)/*.pdf $(DOCDIR)/*.latex
+clean :
+	rm -f *~ #*# 
+	rm -f ../ebin/*.beam
+	rm -f ../doc/*.pdf ../doc/*.tex
 
-
-#.SUFFIXES: .erl .beam .tex .pdf
-
-$(EBINDIR)/%.$(EOBJEXT): %.erl
+$(beams) : %.beam : %.erl
 	$(ERLC) $<
 
-$(DOCDIR)/make_pdf.pdf: make_pdf
-	$(MKPDF) make_pdf
-
-$(DOCDIR)/make_latex.pdf: make_latex
-	$(MKPDF) make_latex
-
-$(DOCDIR)/%.pdf: %.erl
+$(epdfs) : %.pdf : %.erl
 	$(MKPDF) $<
 
-.erl.beam:
-	$(ERLC) $<
-#	erlc -W -o ../ebin $<
+$(spdfs) : %.pdf : %.escript
+	$(MKPDF) $<
 
-.erl.tex:
-	${PWD}/make_tex -o ../doc $<
-
-.erl.pdf:
-	${MKPDF} $<
-
-MODS :=	erl2latex \
-	erl2pdf
-
-
-#tex:	${MODS:%=%.tex} \
-#	make_tex
-
-
-
-
-make_pdf.pdf: make_pdf erl2pdf.erl erl2latex.erl
-	${MKPDF} make_pdf
-make_tex.pdf: make_tex erl2pdf.erl erl2latex.erl
-	${MKPDF} make_tex
-
+$(pdfs) : erl2latex.erl erl2pdf.erl
