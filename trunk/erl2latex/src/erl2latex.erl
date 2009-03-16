@@ -115,7 +115,7 @@ convert_to_latex(Bin, Options0) ->
         "\\document" ++ _ = Latex0 ->
             {Preamble,Doc} = get_preamble(Latex0),
             [[[Preamble,
-               source_listing_setup(Preamble),
+               source_listing_setup(proplists:get_value(source_listing, Opts, auto)),
                "\\begin{document}\n"] || Mode == normal],
              Doc,
              end_doc(Mode)];
@@ -214,6 +214,8 @@ source_listing_setup(Opt,Preamble) ->
     end.
 
 source_listing_setup(undefined) ->
+    source_listing_setup(auto);
+source_listing_setup(auto) ->
     source_listing_setup
       ("\\setlength{\\leftmargin}{1em}}"
        "\\item\\scriptsize\\bfseries");
