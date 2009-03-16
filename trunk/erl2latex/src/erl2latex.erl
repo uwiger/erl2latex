@@ -1,5 +1,5 @@
 %% @_
-%% \title{erl2latex: Literal Erlang Programming}
+%% \title{erl2latex: Literate Erlang Programming}
 %% \author{Ulf Wiger $<$ulf@wiger.net$>$}
 %% \maketitle
 %%
@@ -34,7 +34,7 @@
 %% This module converts an Erlang source file to latex. The latex file
 %% can then be converted to e.g. PDF, using pdflatex or similar tool.
 %%
-%% The idea of `literal Erlang programming' is that the source and comments
+%% The idea of `literate Erlang programming' is that the source and comments
 %% should read as a good paper. Unlike XML markup, Latex markup is also 
 %% fairly unobtrusive when reading the source directly.
 %%
