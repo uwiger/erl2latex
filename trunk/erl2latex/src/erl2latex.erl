@@ -72,13 +72,15 @@ file(F) ->
 
 
 %% @_ The following options control the Latex production:
-%% - \{mode, included\} can be used when making a single document out of 
+%% \begin{itemize}
+%% \item[\{mode, included\}] can be used when making a single document out of 
 %%   several erlang modules and Latex source documents. This has not been
 %%   tested yet, and probably needs more work before it can be used.
-%% - `escape\_mode' controls how special Latex characters are handled. See
+%% \item[`escape\_mode'] controls how special Latex characters are handled. See
 %%   more below.
-%% - `source\_listing' can be used to define custom formatting of the Erlang
-%%    source code.
+%% \item[`source\_listing'] can be used to define custom formatting of the
+%%  Erlang source code.
+%% \end{itemize}
 %% _@
 -type option() :: {documentclass, none | auto | string()}
                   | {mode, normal | included}
@@ -127,12 +129,12 @@ convert_to_latex(Bin, Options0) ->
     end.
 
 %%% @_
-%%% Code can be excluded from the document using the following notation:
-%%% \%\% @hide
-%%% ...
-%%% <comments and/or code>
-%%% ...
-%%% \%\% @show
+%%% Code can be excluded from the document using the following notation: \\
+%%% \%\% @hide \\
+%%% ... \\
+%%% $<$comments and/or code$>$ \\
+%%% ... \\
+%%% \%\% @show \\
 %%%
 %%% The @hide and @show instructions must be alone on their  respective
 %%% comment lines (leading and trailing whitespace doesn't matter).
@@ -239,22 +241,22 @@ end_doc(normal) ->
 
 
 %% @_ 
-%% In this function, we wrap the different `source' and `comment' blocks
+%% In convert\_part/2, we wrap the different `source' and `comment' blocks
 %% appropriately. The weird-looking split between string parts in the `code'
 %% block is to keep pdflatex from tripping on what looks like the end of
 %% the verbatim block when converting its own source to pdf.
 %% 
 %% The comments can either be processed as latex or non-latex. The difference
-%% lies in the handling of the special characters, \{ \} \\ \_ \%. By default, 
-%% pdflatex will look for start and end markers for the latex parts. These
-%% are @\_ to start a multi-line block and \_@ to end it. @\_ must be the 
-%% first symbol on its line, and \_@ must be the last. It is perfectly ok for
-%% them to be the \em{on}only\em{off} symbols on their respective lines. Whitespace
-%% before and after is ignored.
+%% lies in the handling of the special characters, \{ \} $\\$ \_ \%.
+%% By default, pdflatex will look for start and end markers for the latex
+%% parts. These are @\_ to start a multi-line block and \_@ to end it.
+%% @\_ must be the first symbol on its line, and \_@ must be the last.
+%% It is perfectly ok for them to be the {\em only} symbols on
+%% their respective lines. Whitespace before and after is ignored.
 %%
-%% The @\_\_ marker denotes a single line of Latex formatting. It must be the
-%% first non-whitespace symbol on its line (apart from the initial \%, that
-%% is.)
+%% The @\_\_ marker denotes a single line of Latex formatting. It must be
+%% the first non-whitespace symbol on its line (apart from the initial \%,
+%% that is.)
 %%
 %% Comments that are not identified by these markers will be treated as normal
 %% text (possibly commented-out source code), and the special Latex control
@@ -359,16 +361,11 @@ expand_tabs(N,[$\t|Xs]) ->
 expand_tabs(N,[X|Xs]) ->
     [X|expand_tabs(N+1,Xs)].
 
-%%% @_
-%%% A potential problem is when the programmer has commented out code.
-%%% This code is then likely to contain e.g. underscores, which will
-%%% probably trip up the Latex to pdf conversion. Trying to detect
-%%% whether the commented text is Erlang code is tricky, since it's
-%%% rather likely that it's not a syntactically complete expression.
-%%% We take the approach that we scan the code for unescaped underscores,
-%%% and then deal with how to deal with "real Latex underscores" later
-%%% (let's assume to begin with that they are not that common).
-%%% _@
+%% @_
+%% In escape/1, we treat a comment as normal text, and escape tricky 
+%% latex chars. See the part on using @\_ and \_@ to denote latex, or 
+%% using the `escape\_mode' option to control the default behaviour.
+%% _@
 escape("\\" ++ [H|Rest]) ->
     "\\" ++ [H|escape(Rest)];
 escape("_" ++ Rest) ->
