@@ -6,7 +6,7 @@ This is one paragraph
 
 This is a second paragraph
 
-<footer/>
+<blockquote/>
 
 ## Header 3
 
