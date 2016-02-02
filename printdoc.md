@@ -6,7 +6,9 @@ This is one paragraph
 
 This is a second paragraph
 
-<blockquote></blockquote>
+<div class="footer">
+Copyright (c) 2016 Jaguar Land Rover
+</div>
 
 ## Header 3
 
